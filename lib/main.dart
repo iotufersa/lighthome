@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
-import 'package:more4iot_dart_api/more4iot_dart_api.dart';
+import 'package:more4iot_dart_api/more4iot_dart_api.dart' as more4iot;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: '../.env');
   runApp(MyApp());
 }
 
@@ -29,10 +31,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  bool _lightState = false;
+  Color _color = Colors.grey;
 
-  final actionClient =
-      ActionRestClient(Dio(), baseUrl: 'http://192.168.0.5:3666');
+  final actionClient = more4iot.ActionRestClient(Dio(),
+      baseUrl:
+          'http://${dotenv.env['MORE4IOT_HOST']}:${dotenv.env['MORE4IOT_SERVICE_CATALOGER_PORT']}');
 
   @override
   Widget build(BuildContext context) {
@@ -48,10 +52,25 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Icon(
                 Icons.light,
                 size: 300,
+                color: _color,
               ),
-              onPressed: () async => {
-                actionClient.getActions().then((value) =>
-                    value.forEach((element) => print(element.toJson())))
+              onPressed: () async {
+                _lightState = !_lightState;
+                await actionClient
+                    .inscribe(more4iot.Action(
+                        creator: 'string',
+                        origin: [],
+                        scope: <String, dynamic>{
+                          'commands': <String, dynamic>{'light': _lightState}
+                        },
+                        status: true,
+                        receiver: more4iot.Receiver(
+                            identifiers: ['string'],
+                            protocol: 'coap',
+                            uri: '192.168.0.187:5683/light'),
+                        lifetime: more4iot.Lifetime(validity: true, count: 0)))
+                    .then((value) => setState(() =>
+                        {_color = _lightState ? Colors.yellow : Colors.grey}));
               },
             ),
           ],
